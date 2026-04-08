@@ -172,6 +172,17 @@ def resolve_input_file(argv):
 
     return None
 
+
+def pause_before_exit_if_frozen():
+    # 打包为 Windows exe 后从资源管理器启动时，执行结束会立即关窗。
+    # 这里仅在 frozen 场景下暂停，终端中直接运行 python 脚本不受影响。
+    import sys
+    if getattr(sys, 'frozen', False):
+        try:
+            input("\n分析完成，按回车键退出...")
+        except EOFError:
+            pass
+
 def main(filepath):
     print(f"正在解析文件: {filepath}")
     df = parse_mt0(filepath)
@@ -240,9 +251,15 @@ def main(filepath):
 
 if __name__ == "__main__":
     import sys
-    input_file = resolve_input_file(sys.argv)
-    if input_file is None or not input_file.exists():
-        print("未找到可用输入文件。可将 .mt0 文件直接拖到脚本上运行。")
-        sys.exit(1)
+    exit_code = 0
+    try:
+        input_file = resolve_input_file(sys.argv)
+        if input_file is None or not input_file.exists():
+            print("未找到可用输入文件。可将 .mt0 文件直接拖到脚本上运行。")
+            exit_code = 1
+        else:
+            main(str(input_file))
+    finally:
+        pause_before_exit_if_frozen()
 
-    main(str(input_file))
+    sys.exit(exit_code)

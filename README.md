@@ -77,7 +77,7 @@ python analyze_mt0.py
 python analyze_mt0.py path/to/your_file.mt0
 ```
 
-Windows 下也可将 .mt0 文件拖拽到脚本上运行。
+Windows 下也可将 .mt0 文件拖拽到exe可执行文件上运行。
 
 ## 运行输出
 
@@ -94,13 +94,34 @@ Windows 下也可将 .mt0 文件拖拽到脚本上运行。
 - Python 3.8+
 - numpy
 - pandas
-- matplotlib（可选，仅在生成热力图时需要；当前主流程即使未安装也可运行）
 
-可按需安装：
+## 打包为 EXE
+
+本项目已提供 PyInstaller 配置文件 `analyze_mt0.spec`，可直接按以下步骤打包。
+
+1. 安装打包工具
 
 ```bash
-pip install numpy pandas matplotlib
+pip install pyinstaller
 ```
+
+2. 在项目根目录执行打包
+
+```bash
+python -m PyInstaller --noconfirm analyze_mt0.spec
+```
+
+3. 查看打包产物
+
+- 生成的可执行文件路径：`dist/analyze_mt0.exe`
+- 中间构建文件路径：`build/analyze_mt0/`
+
+4. 运行方式
+
+- 直接双击 `dist/analyze_mt0.exe`
+- 或将 `.mt0` 文件拖拽到 `analyze_mt0.exe` 上运行
+
+说明：当前脚本已在 EXE 模式下增加“按回车退出”提示，避免拖拽运行后窗口瞬间关闭。
 
 ## 项目文件
 
