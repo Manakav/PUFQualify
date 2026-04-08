@@ -1,12 +1,8 @@
-import numpy as np
-import pandas as pd
+#################################
+#Powered by Manakav
+#################################
 from itertools import combinations
 from pathlib import Path
-
-try:
-    import matplotlib.pyplot as plt
-except Exception:
-    plt = None
 
 def parse_mt0(filepath):
     data = []
@@ -23,7 +19,7 @@ def parse_mt0(filepath):
                     data.append({'index': index, 'b': b_values})
                 except (ValueError, IndexError):
                     continue
-    return pd.DataFrame(data)
+    return data
 
 def to_binary(value, threshold=0.5):
     return 1 if value >= threshold else 0
@@ -48,7 +44,7 @@ def format_bit_string(bin_vec):
 def build_binary_vectors(df, threshold=0.5):
     return {
         int(row['index']): [to_binary(v, threshold=threshold) for v in row['b']]
-        for _, row in df.iterrows()
+        for row in df
     }
 
 
@@ -84,22 +80,6 @@ def inter_index_similarity(bin_vectors):
     return results
 
 
-def build_inter_similarity_matrix(bin_vectors, inter_results):
-    indices = sorted(bin_vectors.keys())
-    n = len(indices)
-    matrix = np.eye(n, dtype=float)
-    idx_pos = {idx: pos for pos, idx in enumerate(indices)}
-
-    for (i, j), v in inter_results.items():
-        sim = v['similarity']
-        pi = idx_pos[i]
-        pj = idx_pos[j]
-        matrix[pi, pj] = sim
-        matrix[pj, pi] = sim
-
-    return indices, matrix
-
-
 def overall_inter_correlation(inter_results, vector_length):
     # 按照公式计算整组互相关性：
     # Uniqueness = 2 / (k (k - 1)) * Σ HD(R_i, R_j) / N * 100%
@@ -120,28 +100,6 @@ def overall_inter_similarity(inter_results, vector_length):
     # AvgSimilarity(%) = (1 - Avg(HD/N)) * 100
     avg_hd_percent = overall_inter_correlation(inter_results, vector_length)
     return 100.0 - avg_hd_percent
-
-
-def plot_inter_similarity_heatmap(indices, matrix, output_path):
-    if plt is None:
-        return False, '未安装 matplotlib，已跳过互相关性热力图输出。'
-
-    fig, ax = plt.subplots(figsize=(8, 6), dpi=120)
-    im = ax.imshow(matrix, cmap='viridis', vmin=0.0, vmax=1.0)
-
-    ax.set_title('32bit ') # 序列互相关性热力图（基于汉明距离相似度）
-    ax.set_xlabel('Index')
-    ax.set_ylabel('Index')
-    tick_labels = [str(i) for i in indices]
-    ax.set_xticks(range(len(indices)))
-    ax.set_yticks(range(len(indices)))
-    ax.set_xticklabels(tick_labels, rotation=45, ha='right', fontsize=8)
-    ax.set_yticklabels(tick_labels, fontsize=8)
-    fig.colorbar(im, ax=ax, label='Similarity = 1 - HD/32')
-    fig.tight_layout()
-    fig.savefig(output_path)
-    plt.close(fig)
-    return True, f'互相关性热力图已保存: {output_path}'
 
 
 def resolve_input_file(argv):
@@ -188,7 +146,7 @@ def main(filepath):
     df = parse_mt0(filepath)
     print(f"已加载样本数: {len(df)}\n")
 
-    if df.empty:
+    if not df:
         print("未解析到有效数据，请检查输入文件格式。")
         return {}, {}
 
@@ -214,7 +172,8 @@ def main(filepath):
         print(f"{idx:<8} {eb['ones']:<6} {eb['zeros']:<6} {eb['balance_ratio']:.4f}       {r['zero_similarity'] * 100:.2f}%")
 
     if intra_results:
-        intra_avg_similarity = np.mean([r['zero_similarity'] for r in intra_results.values()]) * 100
+        similarities = [r['zero_similarity'] for r in intra_results.values()]
+        intra_avg_similarity = (sum(similarities) / len(similarities)) * 100
         print(f"\n样本内全集合平均相似度: {intra_avg_similarity:.2f}%")
     else:
         print("\n样本内数据不足，无法计算全集合平均相似度。")

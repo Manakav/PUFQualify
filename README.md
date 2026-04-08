@@ -92,8 +92,8 @@ Windows 下也可将 .mt0 文件拖拽到exe可执行文件上运行。
 ## 环境依赖
 
 - Python 3.8+
-- numpy
-- pandas
+
+说明：当前版本核心分析逻辑已改为纯 Python 实现，不再依赖 `numpy/pandas`，可显著减小 PyInstaller 打包体积。
 
 ## 打包为 EXE
 
@@ -122,6 +122,12 @@ python -m PyInstaller --noconfirm analyze_mt0.spec
 - 或将 `.mt0` 文件拖拽到 `analyze_mt0.exe` 上运行
 
 说明：当前脚本已在 EXE 模式下增加“按回车退出”提示，避免拖拽运行后窗口瞬间关闭。
+
+体积优化说明（已在仓库配置中启用）：
+
+- `analyze_mt0.spec` 已开启 `optimize=2` 与 `strip=True`
+- 已在 `excludes` 中排除 `numpy/pandas/matplotlib`
+- 保留 `upx=True`（需本机安装 UPX 才会生效）
 
 ## 项目文件
 
