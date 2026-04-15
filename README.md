@@ -1,142 +1,88 @@
-# PUF Hspice .mt0 输出分析工具
+# PUF HSPICE `.mt0` 输出分析工具
 
-本项目用于对 PUF（硬件不可克隆函数）在 Hspice 仿真后的输出电压序列进行离线分析，评估：
+本仓库包含两套工具：命令行分析脚本与基于 Tkinter 的 GUI（图形界面）。
 
-- 单片均匀性（Uniformity）
-- 多片唯一性（Uniqueness）
+- `analyze_mt0.py`：命令行/脚本模式的 MT0 文件分析工具，适合批量或脚本化运行。
+- `analyze_gui.py`：交互式 GUI，集成 Reliability（可靠性）计算与 MT0 单文件分析两个标签页。
 
-当前判决门限固定为 0.5V：
+核心功能
+----------
+- 将每条样本的 32 个电压值二值化（默认阈值 0.5V），生成 32-bit 序列。
+- 单片内均匀性分析（1/0 计数、balance ratio、与全零向量相似度）。
+- 多片间唯一性/相似度分析（两两汉明距离、平均相似度、最相似/最不相似对）。
 
-- 电压 >= 0.5V 判为 1
-- 电压 < 0.5V 判为 0
+快速开始
+-----------
+Python 环境建议使用 `3.10+`（在仓库 CI/打包中使用 3.10）。
 
-每个样本按 32bit 序列进行统计与对比。
-
-## 功能说明
-
-脚本会从 .mt0 文件中解析每条样本（index）对应的 32 个电压值，完成以下分析：
-
-1. 二值化输出
-- 按门限 0.5V 将电压序列转换为 32bit 序列。
-
-2. 单片均匀性分析
-- 统计每个样本中 1 和 0 的个数。
-- 输出 balance_ratio = ones / 32。
-- 计算与全零向量的相似度（代码中标注为样本内相似度），用于反映比特分布偏置情况。
-
-3. 多片唯一性分析
-- 对任意两片样本计算汉明距离 HD。
-- 计算相似度 Similarity = 1 - HD / 32。
-- 输出最相似和最不相似的样本对。
-- 输出全体样本间平均相似度（代码打印为“多片唯一性”）。
-
-## 指标与公式
-
-设任意两片响应分别为 R_i、R_j，长度 N = 32，样本数为 k。
-
-1. 归一化汉明距离：
-
-Uniqueness = HD(R_i, R_j) / N
-
-2. 全体平均唯一性（百分比形式）：
-
-Uniqueness_avg(%) = (2 / (k * (k - 1))) * Σ(HD(R_i, R_j) / N) * 100%
-
-3. 全体平均相似度：
-
-Similarity_avg(%) = 100% - Uniqueness_avg(%)
-
-说明：当前脚本最终输出的是样本间平均相似度百分比，用于直观观察“不同样本之间有多像”。
-
-## 输入数据要求
-
-- 输入文件默认是仓库根目录下的 R.mt0。
-- 如果启动脚本时传入文件路径，则使用传入路径。
-- 若未传参且默认文件不存在，脚本会尝试弹出文件选择窗口。
-
-解析规则（与当前代码一致）：
-
-- 忽略以下行：
-	- 以 index、$、. 开头的行
-	- 空行
-- 对有效数据行要求列数至少为 36。
-- 第 1 列解析为 index。
-- 第 4 到第 35 列（共 32 列）解析为电压值。
-
-## 运行方式
-
-在项目目录执行：
+运行 GUI
 
 ```bash
-python analyze_mt0.py
+python analyze_gui.py
 ```
 
-指定输入文件：
+GUI 概览：
+- `Reliability` 标签页：可添加多个 `.mt0` 文件、标记参考样本、填写温度/电压元数据，点击 `Compute Reliability` 计算每个 index 的 BER/可靠性并可导出 per-index CSV。
+- `MT0 Analysis` 标签页：用于单文件的详细展示（显示每个 index 的 32-bit 序列、样本内/样本间统计）。可设置二值化阈值并运行快速分析。
+
+命令行使用（CLI）
 
 ```bash
-python analyze_mt0.py path/to/your_file.mt0
+python analyze_mt0.py                 # 交互式选择或使用默认 R.mt0
+python analyze_mt0.py path/to/file.mt0
 ```
 
-Windows 下也可将 .mt0 文件拖拽到exe可执行文件上运行。
+打包（生成可执行文件）
+-----------------
+项目包含 `build_exe.py`，用于基于 PyInstaller 生成一个包含字体资源的单文件可执行。
 
-## 运行输出
-
-控制台会输出：
-
-- 每个 index 的 32bit 二进制序列
-- 每个样本的 1/0 个数与 balance_ratio
-- 样本两两之间最相似 10 对（汉明距离最低）
-- 样本两两之间最不相似 10 对（汉明距离最高）
-- 全体样本间平均相似度（百分比）
-
-## 环境依赖
-
-- Python 3.8+
-
-说明：当前版本核心分析逻辑已改为纯 Python 实现，不再依赖 `numpy/pandas`，可显著减小 PyInstaller 打包体积。
-
-## 打包为 EXE
-
-本项目已提供 PyInstaller 配置文件 `analyze_mt0.spec`，可直接按以下步骤打包。
-
-1. 安装打包工具
+准备打包环境：
 
 ```bash
+pip install --upgrade pip
 pip install pyinstaller
 ```
 
-2. 在项目根目录执行打包
+构建 GUI 可执行：
 
 ```bash
-python -m PyInstaller --noconfirm analyze_mt0.spec
+python build_exe.py
 ```
 
-3. 查看打包产物
+说明：`build_exe.py` 会尝试把 `fonts/` 下的字体打包进去，以保证 GUI 字体一致性。跨平台注意事项：在 Linux 上打包 Windows exe 需要额外环境（如 Wine），本脚本不做自动交叉编译。
 
-- 生成的可执行文件路径：`dist/analyze_mt0.exe`
-- 中间构建文件路径：`build/analyze_mt0/`
+持续集成（GitHub Actions）
+--------------------------
+仓库已包含一个打包工作流：`.github/workflows/package.yml`。
+- 作用：在 `ubuntu-latest` / `windows-latest` / `macos-latest` runner 上运行 `python build_exe.py` 打包 `analyze_gui`，并把 `dist/` 上传为 artifact。
+- 触发方式：推送到 `main`/`master` 分支或手动触发（workflow_dispatch）。
 
-4. 运行方式
+建议
+-----
+- 将 `dist/` 与 `build/` 加入 `.gitignore`：
 
-- 直接双击 `dist/analyze_mt0.exe`
-- 或将 `.mt0` 文件拖拽到 `analyze_mt0.exe` 上运行
+```
+dist/
+build/
+*.pyc
+__pycache__/
+```
 
-说明：当前脚本已在 EXE 模式下增加“按回车退出”提示，避免拖拽运行后窗口瞬间关闭。
+- 若希望仅在发布时打包，可把工作流调整为仅在 tag/release 触发，或在成功构建后自动创建 GitHub Release（需配置 repo token）。
 
-体积优化说明（已在仓库配置中启用）：
+仓库文件一览
+--------------
+- `analyze_gui.py` — GUI 程序（Tkinter）
+- `analyze_mt0.py` — CLI/脚本分析工具
+- `build_exe.py` — PyInstaller 打包辅助脚本（打包 GUI，并包含 fonts）
+- `analyze_gui.spec` — PyInstaller spec（GUI）
+- `analyze_mt0.spec` — PyInstaller spec（CLI，保留供需要时使用）
+- `fonts/` — 可选的字体文件，用于打包时包含
 
-- `analyze_mt0.spec` 已开启 `optimize=2` 与 `strip=True`
-- 已在 `excludes` 中排除 `numpy/pandas/matplotlib`
-- 保留 `upx=True`（需本机安装 UPX 才会生效）
+许可
+----
+参见仓库中的 `LICENSE`。
 
-## 项目文件
-
-- analyze_mt0.py：主分析脚本
-- R.mt0：示例/默认输入数据
-- analyze_mt0.spec：PyInstaller 打包配置
-- build/：打包过程输出目录
-
-## 备注
-
-- 当前判决门限为 0.5V，如需调整可修改代码中 threshold 参数默认值。
-- 目前代码中的“样本内分析”以与全零向量的相似度来表征分布偏置，若后续需要可扩展为与理想 50% 分布目标的偏差分析。
+反馈与贡献
+------------
+欢迎通过 GitHub issues 或 pull requests 提交 bug 报告和改进建议。若需要我帮你把工作流改成仅在 release tag 触发或自动发布 Release，我可以继续修改。

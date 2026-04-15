@@ -172,9 +172,15 @@ def main(filepath):
         print(f"{idx:<8} {eb['ones']:<6} {eb['zeros']:<6} {eb['balance_ratio']:.4f}       {r['zero_similarity'] * 100:.2f}%")
 
     if intra_results:
+        import math
         similarities = [r['zero_similarity'] for r in intra_results.values()]
         intra_avg_similarity = (sum(similarities) / len(similarities)) * 100
+        # 仅计算标准差
+        mean = sum(similarities) / len(similarities)
+        stddev = math.sqrt(sum((x - mean) ** 2 for x in similarities) / len(similarities))
         print(f"\n样本内全集合平均相似度: {intra_avg_similarity:.2f}%")
+        print(f"样本内全集合相似度标准差 (Std): {stddev * 100:.4f}%")
+        print("（标准差 Std：越小表示各 index 的均匀性越一致，越大则均匀性差异越大。例如：Std < 5% 通常认为均匀性较好，Std > 10% 说明均匀性差异较大）")
     else:
         print("\n样本内数据不足，无法计算全集合平均相似度。")
     
@@ -202,7 +208,13 @@ def main(filepath):
     vector_length = len(next(iter(bin_vectors.values()))) if bin_vectors else 0
     if inter_results and vector_length > 0:
         avg_similarity_percent = overall_inter_similarity(inter_results, vector_length)
+        # 仅计算标准差
+        inter_similarities = [r['similarity'] for r in inter_results.values()]
+        inter_mean = sum(inter_similarities) / len(inter_similarities)
+        inter_stddev = math.sqrt(sum((x - inter_mean) ** 2 for x in inter_similarities) / len(inter_similarities))
         print(f"\n样本间平均相似度(多片唯一性): {avg_similarity_percent:.2f}%")
+        print(f"样本间相似度标准差 (Std): {inter_stddev * 100:.4f}%")
+        print("（标准差 Std：越小表示不同 index 之间的唯一性越一致，越大则唯一性差异越大。例如：Std < 5% 通常认为唯一性较好，Std > 10% 说明唯一性差异较大）")
     else:
         print("\n样本不足，无法计算样本间平均相似度。")
     
