@@ -1,6 +1,5 @@
 name: Manual Build and Release
 
-# 1. 修改触发条件：仅保留手动触发
 on:
   workflow_dispatch:
     inputs:
@@ -10,13 +9,12 @@ on:
         default: 'v1.0.0'
         type: string
 
-# 权限保持不变
 permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build on ${{ matrix.os }}
+  build_and_release:
+    name: Build & Release on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -41,55 +39,47 @@ jobs:
       - name: Build analyze_gui
         run: |
           python build_exe.py
-      
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: pufqualify-dist-${{ matrix.os }}
-          path: dist
 
-  create_release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Archive artifacts into zip
-        run: |
-          # 2. 使用手动输入的版本号命名文件
-          ZIPNAME="pufqualify-build-${{ inputs.version }}.zip"
-          cd artifacts
-          # 打包所有子文件夹
-          zip -r "../${ZIPNAME}" */
-          cd ..
+      # --- 修改点：根据操作系统重命名可执行文件 ---
+      - name: Rename Executable
+        id: rename
         shell: bash
+        run: |
+          # 假设你的 pyinstaller 生成的文件名为 analyze_gui
+          # 1. 确定源文件路径 (Windows 在 dist/analyze_gui/analyze_gui.exe, 其他在 dist/analyze_gui/analyze_gui)
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            SOURCE_FILE="dist/analyze_gui/analyze_gui.exe"
+            EXT=".exe"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            # macOS 通常会生成 .app 文件夹，这里假设我们要打包 app 或者提取二进制
+            # 如果是纯二进制，路径类似 Linux。如果是 .app，通常打包成 zip。
+            # 这里假设我们要上传 .app 文件夹
+            SOURCE_FILE="dist/analyze_gui.app"
+            EXT=".app"
+          else
+            SOURCE_FILE="dist/analyze_gui/analyze_gui"
+            EXT=""
+          fi
 
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
+          # 2. 生成目标文件名：analyze_gui-{version}-{os}
+          TARGET_NAME="analyze_gui-${{ inputs.version }}-${{ runner.os }}${EXT}"
+          
+          # 3. 移动并重命名
+          mv "$SOURCE_FILE" "$TARGET_NAME"
+          
+          # 4. 输出变量供后续步骤使用
+          echo "target_name=${TARGET_NAME}" >> $GITHUB_OUTPUT
+
+      # --- 修改点：直接创建 Release 并上传该系统的文件 ---
+      - name: Create Release and Upload
+        uses: softprops/action-gh-release@v1
         with:
-          # 3. 使用手动输入的版本号作为 Tag 和 Release 名称
           tag_name: ${{ inputs.version }}
-          release_name: Release ${{ inputs.version }}
+          name: Release ${{ inputs.version }}
           body: |
-            Manual build triggered by @${{ github.actor }}.
+            Automated build for ${{ runner.os }}.
             Commit: ${{ github.sha }}
-          draft: false
-          prerelease: false
+          files: |
+            ${{ steps.rename.outputs.target_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload release asset (zip)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          # 4. 上传对应版本号的文件
-          asset_path: ./pufqualify-build-${{ inputs.version }}.zip
-          asset_name: pufqualify-build-${{ inputs.version }}.zip
-          asset_content_type: application/zip
