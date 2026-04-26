@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [windows-latest]
         python-version: ["3.10"]
 
     steps:
@@ -45,29 +45,10 @@ jobs:
         id: rename
         shell: bash
         run: |
-          # 假设你的 pyinstaller 生成的文件名为 analyze_gui
-          # 1. 确定源文件路径 (Windows 在 dist/analyze_gui/analyze_gui.exe, 其他在 dist/analyze_gui/analyze_gui)
-          if [ "${{ runner.os }}" == "Windows" ]; then
-            SOURCE_FILE="dist/analyze_gui/analyze_gui.exe"
-            EXT=".exe"
-          elif [ "${{ runner.os }}" == "macOS" ]; then
-            # macOS 通常会生成 .app 文件夹，这里假设我们要打包 app 或者提取二进制
-            # 如果是纯二进制，路径类似 Linux。如果是 .app，通常打包成 zip。
-            # 这里假设我们要上传 .app 文件夹
-            SOURCE_FILE="dist/analyze_gui.app"
-            EXT=".app"
-          else
-            SOURCE_FILE="dist/analyze_gui/analyze_gui"
-            EXT=""
-          fi
-
-          # 2. 生成目标文件名：analyze_gui-{version}-{os}
-          TARGET_NAME="analyze_gui-${{ inputs.version }}-${{ runner.os }}${EXT}"
-          
-          # 3. 移动并重命名
+          SOURCE_FILE="dist/analyze_gui/analyze_gui.exe"
+          EXT=".exe"
+          TARGET_NAME="analyze_gui-${{ inputs.version }}-windows${EXT}"
           mv "$SOURCE_FILE" "$TARGET_NAME"
-          
-          # 4. 输出变量供后续步骤使用
           echo "target_name=${TARGET_NAME}" >> $GITHUB_OUTPUT
 
       # --- 修改点：直接创建 Release 并上传该系统的文件 ---
