@@ -9,6 +9,9 @@ def parse_mt0(filepath):
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()
+            # 自动舍弃包含 failed 的序列（不区分大小写）
+            if 'fail' in line.lower():
+                continue
             if line.startswith('index') or line.startswith('$') or line.startswith('.') or not line:
                 continue
             parts = line.split()

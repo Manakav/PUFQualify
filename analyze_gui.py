@@ -196,9 +196,17 @@ class AnalyzeGUI(tk.Tk):
             if any(e['path'] == p for e in self.file_entries):
                 continue
             try:
+                # 统计 failed 行数
+                total_lines = 0
+                failed_lines = 0
+                with open(p, 'r') as f:
+                    for line in f:
+                        total_lines += 1
+                        if 'fail' in line.lower():
+                            failed_lines += 1
                 df = parse_mt0(p)
                 if not df:
-                    messagebox.showwarning("Parse failed", f"No valid data parsed: {p}")
+                    messagebox.showwarning("Parse failed", f"No valid data parsed: {p}\n被抛弃的序列数: {failed_lines}")
                     continue
                 vectors = build_binary_vectors(df, threshold=0.5)
                 indices = set(vectors.keys())
@@ -206,6 +214,8 @@ class AnalyzeGUI(tk.Tk):
                 ent = {'path': p, 'temp': '', 'volt': '', 'is_ref': False, 'vectors': vectors, 'indices': indices, 'n': n}
                 self.file_entries.append(ent)
                 self.file_listbox.insert(tk.END, os.path.basename(p) + (f"  [n={n}]" if n else ""))
+                if failed_lines > 0:
+                    messagebox.showinfo("提示", f"文件 {os.path.basename(p)} 加载完成。\n被抛弃的序列数: {failed_lines}")
             except Exception as ex:
                 messagebox.showerror("Error", f"Error parsing file {p}: {ex}")
 
@@ -453,12 +463,20 @@ class AnalyzeGUI(tk.Tk):
             messagebox.showinfo("Info", "Please choose an MT0 file to analyze.")
             return
         try:
+            # 统计 failed 行数
+            total_lines = 0
+            failed_lines = 0
+            with open(path, 'r') as f:
+                for line in f:
+                    total_lines += 1
+                    if 'fail' in line.lower():
+                        failed_lines += 1
             df = parse_mt0(path)
         except Exception as e:
             messagebox.showerror("Parse failed", f"Error parsing file: {e}")
             return
         if not df:
-            messagebox.showinfo("No data", "No valid data parsed from file.")
+            messagebox.showinfo("No data", f"No valid data parsed from file.\n被抛弃的序列数: {failed_lines}")
             return
         try:
             threshold = float(self.mt0_threshold_var.get())
@@ -471,6 +489,7 @@ class AnalyzeGUI(tk.Tk):
         out_lines = []
         out_lines.append(f"File: {path}")
         out_lines.append(f"Loaded samples: {len(sorted_indices)}")
+        out_lines.append(f"被抛弃的序列数: {failed_lines}")
         out_lines.append("=" * 60)
         out_lines.append(f"Per-index 32-bit sequences (threshold={threshold:.3f})")
         out_lines.append("=" * 60)
