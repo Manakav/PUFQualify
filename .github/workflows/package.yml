@@ -45,7 +45,7 @@ jobs:
         id: rename
         shell: bash
         run: |
-          SOURCE_FILE="dist/analyze_gui/analyze_gui.exe"
+          SOURCE_FILE="dist/analyze_gui.exe"
           EXT=".exe"
           TARGET_NAME="analyze_gui-${{ inputs.version }}-windows${EXT}"
           mv "$SOURCE_FILE" "$TARGET_NAME"
